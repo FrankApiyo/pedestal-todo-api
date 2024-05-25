@@ -1,7 +1,6 @@
 (ns main
   (:require [io.pedestal.http :as http]
-            [io.pedestal.http.route :as route]
-            [io.pedestal.test :as test]))
+            [io.pedestal.http.route :as route]))
 
 (defn response
   [status body & {:as headers}]
@@ -18,7 +17,7 @@
                   response (ok context)]
               (assoc context :response response)))})
 
-(def rotues
+(def routes
   (route/expand-routes
     #{["/todo" :post echo :route-name :list-create]
       ["/todo" :get echo :route-name :list-query-form]
@@ -27,4 +26,23 @@
       ["/todo/:list-id/:item-id" :get echo :route-name :list-item-view]
       ["/todo/:list-id/:item-id" :put echo :route-name :list-item-update]
       ["/todo/:list-id/:item-id" :delete echo :route-name :list-item-delete]}))
+
+(def service-map {::http/routes routes, ::http/type :jetty, ::http/port 8890})
+
+;; For interactive development
+(defonce server (atom nil))
+
+(defn start-dev
+  []
+  (reset! server (http/start (http/create-server (assoc service-map
+                                                   ::http/join? false)))))
+
+(defn stop-dev [] (http/stop @server))
+
+(defn restart [] (stop-dev) (start-dev))
+
+(comment
+  (start-dev)
+  (stop-dev)
+  (restart))
 
