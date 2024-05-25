@@ -11,3 +11,20 @@
 (def created (partial response 201))
 (def accepted (partial response 202))
 
+(def echo
+  {:name :echo,
+   :enter (fn [context]
+            (let [_request (:request context)
+                  response (ok context)]
+              (assoc context :response response)))})
+
+(def rotues
+  (route/expand-routes
+    #{["/todo" :post echo :route-name :list-create]
+      ["/todo" :get echo :route-name :list-query-form]
+      ["/todo/:list-id" :get echo :route-name :list-view]
+      ["/todo/:list-id" :post echo :route-name :list-item-create]
+      ["/todo/:list-id/:item-id" :get echo :route-name :list-item-view]
+      ["/todo/:list-id/:item-id" :put echo :route-name :list-item-update]
+      ["/todo/:list-id/:item-id" :delete echo :route-name :list-item-delete]}))
+
