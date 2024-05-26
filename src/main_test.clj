@@ -36,5 +36,6 @@
 
 (comment
   (test-request :post "/todo?name=A-List")
-  (test-request :post "/todo"))
+  (test-request :post "/todo")
+  (test-request :get "/todo/118889"))
 

@@ -50,13 +50,71 @@
                   response (ok context)]
               (assoc context :response response)))})
 
+(defn find-list-by-id [db-val db-id] (get db-val db-id))
+
+(def list-view
+  {:name :list-view,
+   :enter (fn [context]
+            (let [db-id (get-in context [:request :path-params :list-id])
+                  the-list (when db-id
+                             (find-list-by-id (get-in context
+                                                      [:request :database])
+                                              db-id))]
+              (cond-> context the-list (assoc :result the-list))))})
+
+(defn find-list-item-by-ids
+  [db-val list-id item-id]
+  (get-in db-val [list-id :items item-id] nil))
+
+(def entity-render
+  {:name :entity-render,
+   :leave (fn [context]
+            (if-let [item (:result context)]
+              (assoc context :response (ok item))
+              context))})
+
+(def list-item-view
+  {:name list-item-view,
+   :leave (fn [context]
+            (let [list-id (get-in context [:request :path-params :list-id])
+                  item-id (and list-id
+                               (get-in context
+                                       [:request :path-params :item-id]))
+                  item (and item-id
+                            (find-list-item-by-ids (get-in context
+                                                           [:request :database])
+                                                   list-id
+                                                   item-id))]
+              (cond-> context item (assoc :result item))))})
+
+(defn list-item-add
+  [dbval list-id item-id new-item]
+  (if (contains? dbval list-id)
+    (assoc-in dbval [list-id :items item-id] new-item)
+    dbval))
+
+(def list-item-create
+  {:name :list-item-create,
+   :enter
+     (fn [context]
+       (if-let [list-id (get-in context [:request :path-params :list-id])]
+         (let [nm (get-in context [:request :query-params :name] "Unamed Item")
+               new-item (make-list-item nm)
+               item-id (str (gensym "i"))]
+           (-> context
+               (assoc :tx-data [list-item-add list-id item-id new-item])
+               (assoc-in [:request :path-params :item-id] item-id)))
+         context))})
+
 (def routes
   (route/expand-routes
     #{["/todo" :post [db-interceptor list-create]]
       ["/todo" :get echo :route-name :list-query-form]
-      ["/todo/:list-id" :get echo :route-name :list-view]
-      ["/todo/:list-id" :post echo :route-name :list-item-create]
-      ["/todo/:list-id/:item-id" :get echo :route-name :list-item-view]
+      ["/todo/:list-id" :get [entity-render db-interceptor list-view]]
+      ["/todo/:list-id" :post
+       [entity-render list-item-view db-interceptor list-item-create]]
+      ["/todo/:list-id/:item-id" :get
+       [entity-render list-item-view db-interceptor]]
       ["/todo/:list-id/:item-id" :put echo :route-name :list-item-update]
       ["/todo/:list-id/:item-id" :delete echo :route-name :list-item-delete]}))
 
